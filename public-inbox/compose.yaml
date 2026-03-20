@@ -46,6 +46,17 @@ services:
     command: >
       bash ./start.sh
 
+  tunnel:
+    container_name: cloudflared-tunnel
+    image: docker.io/cloudflare/cloudflared
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - nginx
+    command: tunnel run
+    # environment:
+    #   - TUNNEL_TOKEN=***
+
 networks:
   default:
     driver: bridge

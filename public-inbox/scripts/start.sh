@@ -41,9 +41,6 @@ mkdir -p $EXT_DIR
 public-inbox-httpd &
 pids+=($!)
 
-public-inbox-nntpd &
-pids+=($!)
-
 sleep 2
 public-inbox-watch &
 pids+=($!)
