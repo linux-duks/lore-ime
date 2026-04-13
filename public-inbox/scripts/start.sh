@@ -27,43 +27,33 @@ spamd --username debian-spamd -l \
 	--pidfile /var/run/spamd.pid \
 	--helper-home-dir /var/lib/spamassassin \
 	&
-	# -s stderr 2>/dev/null &
+# -s stderr 2>/dev/null &
 pids+=($!)
 
 # startup interval
 sleep 2
 
-# Service 2: Succesful long-running task
-# public-inbox-watch &
-# pids+=($!)
+EXT_DIR="/data/all/"
+BASE_DATA="/data"
 
-# startup interval
-# sleep 2
+mkdir -p $EXT_DIR
 
-# Service 3: Simulated FAILURE (exits with code 1 after 3 seconds)
-# public-inbox-httpd &
-# public-inbox-netd -l http://0.0.0.0:8080 -l nntp://0.0.0.0:563 &
-# sh -c "sleep 120; exit 1" &
 public-inbox-httpd &
 pids+=($!)
 
 public-inbox-nntpd &
 pids+=($!)
 
-
-# sleep 2
+sleep 2
 public-inbox-watch &
 pids+=($!)
-
-EXT_DIR="/data/all/"
-BASE_DATA="/data"
 
 # Enable extended globbing for the 'not' operator
 shopt -s extglob
 
 # Run the command
 # The trailing slash on !(all)/ ensures we only match directories
-public-inbox-extindex --watch "$EXT_DIR" "$BASE_DATA"/!(all)/ &
+sleep 2 && public-inbox-extindex "$EXT_DIR" "$BASE_DATA"/!(all)/
 
 echo "Monitoring services (PIDs: ${pids[*]})..."
 
@@ -75,5 +65,4 @@ if [ $? -ne 0 ]; then
 	cleanup
 else
 	echo "A service finished successfully. Checking remaining..."
-	# Optional: loop or wait for others if success isn't a "failure" condition
 fi

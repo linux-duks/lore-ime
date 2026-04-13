@@ -13,6 +13,6 @@ services:
     volumes:
     - ./lore.conf:/config/lore.conf:z
     - ../public-inbox/config/:/etc/public-inbox/
-    - ../data/:/data:z
+    - ../grok-data/:/data:z
     command: grok-pull -v -c /config/lore.conf
 

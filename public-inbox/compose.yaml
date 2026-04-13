@@ -4,9 +4,9 @@ services:
   nginx:
     image: docker.angie.software/angie:minimal
     ports:
-      - "80:80"
-      - "443:443"
-      - "119:119"
+      - "8088:80"
+      - "8443:443"
+      - "8119:119"
     volumes:
       - ./nginx/angie.conf:/etc/angie/angie.conf:z
       - ./acme:/var/lib/angie/acme:z

@@ -11,10 +11,6 @@
 [publicinbox "kernel.ime"]
 	address = kernel-owner@lists.ime.usp.br
 	url = https://lore.kernel.ime.usp.br/kernel.ime/
-	;listid = kernel.ime
-	;listid = "List-Id: Linux Kernel Development - IME USP BR <kernel.lists.ime.usp.br>"
-	;newsgroup = br.org.usp.ime.lists.kernel-ime
-	;nntpmirror = nntp://lore.kernel.ime.br/br.org.usp.ime.lists.kernel-ime
 
 	inboxdir = /data/kernel.ime/
 	watch = "imaps://user@email:pass@imap:993/INBOX"

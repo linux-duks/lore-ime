@@ -11,7 +11,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY grokmirror .
+COPY grokmirror-source .
 RUN pip install --upgrade pip && \
 	pip install .
 
