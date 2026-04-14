@@ -3,6 +3,9 @@ version: '3'
 # Usage:
 #   docker compose up -d                          # clone mode (default)
 #   GROKMIRROR_MODE=indexed docker compose up -d  # indexed mode (with public-inbox hooks)
+#
+# After cloning with clone mode, run manual indexing:
+#   docker compose run --rm indexer
 
 services:
   grokmirror:
@@ -21,5 +24,25 @@ services:
     - ./lore-${GROKMIRROR_MODE:-clone}.conf:/config/lore.conf:z
     - ../public-inbox/pi-configs/:/etc/public-inbox/:z
     - ../data/:/data:z
+    - ./grokmirror/scripts:/scripts:z
     command: grok-pull -v -c /config/lore.conf
+    stop_grace_period: 1m30s
+
+  # Run manual indexing: docker compose run --rm indexer
+  indexer:
+    profiles: ["manual"]
+    build:
+      context: ..
+      dockerfile: ./grokmirror/Containerfile
+
+    environment:
+      - HOME=/tmp
+      - PI_CONFIG=/etc/public-inbox/config
+
+    user: "${UID}:${GID}"
+    volumes:
+    - ../public-inbox/pi-configs/:/etc/public-inbox/:z
+    - ../data/:/data:z
+    - ./scripts:/scripts:z
+    command: bash /scripts/index-cloned-repos.sh -o https://lore.kernel.org
 
