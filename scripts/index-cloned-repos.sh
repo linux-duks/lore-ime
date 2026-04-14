@@ -63,6 +63,39 @@ inbox_in_config() {
     git config -f "$PI_CONFIG" --get "publicinbox.${name}.inboxdir" >/dev/null 2>&1
 }
 
+# Check if an inbox directory needs v2 initialization
+# Returns 0 if needs init, 1 if complete
+needs_init() {
+    local inbox_dir="$1"
+
+    # Has git epoch repos
+    local has_epoch=false
+    for epoch_dir in "${inbox_dir}"/git/*.git; do
+        if [ -d "$epoch_dir" ]; then
+            has_epoch=true
+            break
+        fi
+    done
+
+    if [ "$has_epoch" = false ]; then
+        return 1  # No git repos at all, not a grokmirror inbox
+    fi
+
+    # Lacks v2 wrapper structure
+    if [ ! -d "${inbox_dir}/all.git" ] || [ ! -f "${inbox_dir}/msgmap.sqlite3" ]; then
+        return 0  # Needs init
+    fi
+
+    return 1  # Already complete
+}
+
+# Get config value for an inbox from the PI_CONFIG file
+get_config() {
+    local name="$1"
+    local key="$2"
+    git config -f "$PI_CONFIG" "publicinbox.${name}.${key}" 2>/dev/null || true
+}
+
 # Fetch remote config for an inbox
 fetch_remote_config() {
     local inbox_name="$1"
@@ -116,18 +149,64 @@ find_v2_inboxes() {
 }
 
 # Initialize a single inbox
-# Returns: 0 = initialized, 1 = failed, 2 = skipped (already in config)
+# Returns: 0 = initialized, 1 = failed, 2 = skipped (already complete)
 init_inbox() {
     local inbox_name="$1"
     local inbox_dir="${TOPDIR}/${inbox_name}"
     local url="${ORIGIN}/${inbox_name}"
 
-    # Skip if already in config
-    if inbox_in_config "$inbox_name"; then
-        log_info "Skipping '${inbox_name}' - already in config"
+    # If inbox is in config AND complete, skip
+    if inbox_in_config "$inbox_name" && ! needs_init "$inbox_dir"; then
+        log_info "Skipping '${inbox_name}' - already initialized"
         return 2
     fi
 
+    # If inbox is in config but needs init (grokmirror clone), use config values
+    if inbox_in_config "$inbox_name"; then
+        log_info "Reinitializing '${inbox_name}' - in config but lacks v2 structure"
+
+        local config_url config_address
+        config_url=$(get_config "$inbox_name" "url")
+        config_address=$(get_config "$inbox_name" "address")
+
+        if [ -z "$config_url" ]; then
+            config_url="${url}"
+        fi
+        if [ -z "$config_address" ]; then
+            config_address="${inbox_name}@localhost"
+            log_warn "Using fallback address: ${config_address}"
+        fi
+
+        if [ "$DRY_RUN" = true ]; then
+            log_dry "public-inbox-init -V2 '${inbox_name}' '${inbox_dir}' '${config_url}' ${config_address}"
+            log_dry "public-inbox-index --jobs=${JOBS} '${inbox_dir}'"
+            return 0
+        fi
+
+        if public-inbox-init -V2 \
+            "${inbox_name}" \
+            "${inbox_dir}" \
+            "${config_url}" \
+            "${config_address}"; then
+
+            log_info "Reinitialized '${inbox_name}'"
+        else
+            log_error "Failed to reinitialize '${inbox_name}'"
+            return 1
+        fi
+
+        log_info "Indexing '${inbox_name}'"
+        if public-inbox-index --jobs="${JOBS}" "${inbox_dir}"; then
+            log_info "Indexed '${inbox_name}'"
+        else
+            log_error "Failed to index '${inbox_name}'"
+            return 1
+        fi
+
+        return 0
+    fi
+
+    # Inbox not in config - full init with remote config fetch
     log_info "Initializing inbox '${inbox_name}'"
 
     # Try to get remote config
