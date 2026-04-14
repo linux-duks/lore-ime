@@ -1,15 +1,17 @@
-# FROM docker.io/library/debian:bookworm-slim as base
 FROM docker.io/library/debian:trixie-slim as base
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
+# Install shared dependencies
 USER root
 RUN export DEBIAN_FRONTEND=noninteractive &&\
 	apt-get update && \
 	apt-get install -y \
 	git \
 	perl \
+	python3 \
+	python3-pip \
 	sqlite3 \
 	curl \
 	make \
@@ -29,29 +31,22 @@ RUN export DEBIAN_FRONTEND=noninteractive &&\
 	spamd \
 	spamc
 
-# USER app
-
-# Set up the working directory and entry point script
-RUN mkdir -p /var/log/public-inbox && mkdir -p /etc/public-inbox
 
 
+# install grokmirror from source
+WORKDIR /grokmirror
+COPY ./grokmirror/ /grokmirror/
+RUN pip install --break-system-packages .
+
+# install public-inbox from source
 WORKDIR /public-inbox
 
-COPY ./public-inbox-source/ .
-# RUN git clone http://public-inbox.org/public-inbox.git .
+COPY ./public-inbox/ /public-inbox/
 
 RUN yes | ./install/deps.perl all
 
-# RUN rm -rf /var/lib/apt/lists/*
-
-# TODO: check if PERL_INLINE_DIRECTORY & TMPDIR can help speeding this up
 RUN perl Makefile.PL && \
 	make && \
-	# make test && \
-	# make check runs tests in parallel
-	# make check && \
 	make install
 
-
-
-WORKDIR /app
+WORKDIR /data
