@@ -27,7 +27,7 @@ http {
     proxy_temp_path /tmp/angie_proxy 1 2;
 
 {{#ACME_ENABLED}}
-    resolver 8.8.8.8 8.8.4.4;
+    resolver 1.1.1.1 8.8.8.8;
     acme_client_path /var/lib/angie/acme;
 
     acme_client letsencrypt https://acme-v02.api.letsencrypt.org/directory
@@ -70,6 +70,7 @@ http {
         }
     }
 
+{{#ACME_ENABLED}}
     # HTTPS server - Main application
     server {
         listen 443 ssl;
@@ -77,7 +78,6 @@ http {
 
         server_tokens off;
 
-{{#ACME_ENABLED}}
         # SSL certificates from ACME
         ssl_certificate $acme_cert_letsencrypt;
         ssl_certificate_key $acme_cert_key_letsencrypt;
@@ -89,7 +89,6 @@ http {
 
         # Link ACME client for auto-renewal
         acme letsencrypt;
-{{/ACME_ENABLED}}
 
         # Correctly load mime types
         include /etc/angie/mime.types;
@@ -109,4 +108,5 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
+{{/ACME_ENABLED}}
 }

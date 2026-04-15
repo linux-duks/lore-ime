@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+shopt -s extglob
 
-if [ -z "$(ls -A $PI_DATA_DIR)" ]; then
+if [ -z "$(ls -A "$PI_DATA_DIR")" ]; then
 	echo "Data Directory is empty. Initialyzing"
 	PI_CONFIG=/etc/public-inbox/config.init bash ./reinit-from-config.sh /etc/public-inbox/config
 else
@@ -15,10 +16,17 @@ pids=()
 # Cleanup function to kill all background processes
 cleanup() {
 	echo "Shutting down all services..."
-	# Kill all PIDs in our array; ignore errors if they are already dead
-	kill "${pids[@]}" 2>/dev/null
-	exit 1
+	# Only try to kill if there are PIDs to kill
+	if [ ${#pids[@]} -gt 0 ]; then
+		kill "${pids[@]}" 2>/dev/null
+	fi
+	exit 0 # Use 0 for a graceful shutdown unless you want Podman to see an error
 }
+
+# TRAP signals: This is crucial for Podman.
+# When you run 'podman stop', it sends SIGTERM.
+# Without this trap, the script dies and leaves "zombie" child processes.
+trap cleanup SIGTERM SIGINT
 
 if [ "$SPAMCHECK_ENABLED" = "true" ]; then
 	spamd --username debian-spamd -l \
@@ -56,21 +64,20 @@ if [ "$PI_IMAP_ENABLED" = "true" ]; then
 fi
 
 if [ "$PI_INDEXING_ENABLE" = "true" ]; then
-	# Enable extended globbing for the 'not' operator
-	shopt -s extglob
-
-	# Run the command
 	# The trailing slash on !(all)/ ensures we only match directories
 	sleep 2 && public-inbox-extindex "$EXT_DIR" "$BASE_DATA"/!(all)/
 fi
 
+if [ ${#pids[@]} -eq 0 ]; then
+	echo "No services enabled. Exiting."
+	exit 0
+fi
+
 echo "Monitoring services (PIDs: ${pids[*]})..."
 
-# 'wait -n' waits for the FIRST process to exit and returns its exit code
-wait -n
-
-if [ $? -ne 0 ]; then
-	echo "Critial failure detected in one of the services!"
+# 'wait -n' waits for the FIRST process to exit
+# The '!' negates the exit code, so the block runs if the command fails (non-zero)
+if ! wait -n; then
 	cleanup
 else
 	echo "A service finished successfully. Checking remaining..."
