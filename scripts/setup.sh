@@ -132,13 +132,25 @@ process_template() {
 	fi
 
 	# Process {{#PI_IMAP_ENABLED}}...{{/PI_IMAP_ENABLED}} blocks
-	if [[ "${PI_IMAP_ENABLED:-false}" == "true" ]]; then
+	if [[ "$PI_IMAP_ENABLED" == "true" ]]; then
 		content=$(echo "$content" | sed \
 			-e 's/^{{#PI_IMAP_ENABLED}}$//' \
 			-e 's/^{{\/PI_IMAP_ENABLED}}$//')
 	else
 		content=$(echo "$content" | sed \
 			-e '/^{{#PI_IMAP_ENABLED}}$/,/^{{\/PI_IMAP_ENABLED}}$/d')
+	fi
+
+
+
+	# Process {{#SPAMCHECK_ENABLED}}...{{/SPAMCHECK_ENABLED}} blocks
+	if [[ "${PI_IMAP_ENABLED:-false}" == "true" ]]; then
+		content=$(echo "$content" | sed \
+			-e 's/^{{#SPAMCHECK_ENABLED}}$//' \
+			-e 's/^{{\/SPAMCHECK_ENABLED}}$//')
+	else
+		content=$(echo "$content" | sed \
+			-e '/^{{#SPAMCHECK_ENABLED}}$/,/^{{\/SPAMCHECK_ENABLED}}$/d')
 	fi
 
 	# Replace {{VAR}} placeholders with values

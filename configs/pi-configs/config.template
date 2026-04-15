@@ -13,9 +13,9 @@
 	url = https://{{SERVE_HOST}}/{{PI_IMAP_LIST_NAME}}
 	inboxdir = /data/{{PI_IMAP_LIST_NAME}}
 	watch = "{{PI_IMAP_AUTH_URL}}"
-{{#PI_IMAP_ENABLED}}
+{{/PI_IMAP_ENABLED}}
 
 {{#SPAMCHECK_ENABLED}}
 [publicinboxwatch]
 	spamcheck = spamc
-{{#SPAMCHECK_ENABLED}}
+{{/SPAMCHECK_ENABLED}}
