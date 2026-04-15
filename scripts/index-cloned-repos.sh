@@ -270,12 +270,12 @@ init_inbox() {
 # Run extindex on all inboxes
 run_extindex() {
     if [ "$DRY_RUN" = true ]; then
-        log_dry "public-inbox-extindex --all --jobs=${JOBS}"
+        log_dry "public-inbox-extindex --all --jobs=${JOBS} /data/all"
         return 0
     fi
 
     log_info "Running extindex on all inboxes"
-    if public-inbox-extindex --all --jobs="${JOBS}"; then
+    if public-inbox-extindex --all --jobs="${JOBS}" /data/all; then
         log_info "Extindex complete"
     else
         log_error "Extindex failed"

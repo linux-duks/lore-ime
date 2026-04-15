@@ -82,7 +82,7 @@ source "$ENV_FILE"
 set +a
 
 # Validate required variables
-required_vars=("UPSTREAM_HOST" "SERVE_HOST" "ACME_ENABLED" "ACME_EMAIL")
+required_vars=("MIRROR_UPSTREAM_HOST" "SERVE_HOST" "ACME_ENABLED" "ACME_EMAIL")
 missing=()
 
 for var in "${required_vars[@]}"; do
@@ -117,30 +117,52 @@ process_template() {
 		return 0
 	fi
 
-	# Handle conditional blocks for ACME
+	# Handle conditional blocks
 	local content
 	content=$(cat "$template")
 
 	# Process {{#ACME_ENABLED}}...{{/ACME_ENABLED}} blocks
 	if [[ "$ACME_ENABLED" == "true" ]]; then
-		# Remove {{#ACME_ENABLED}} and {{/ACME_ENABLED}} markers, keep content
 		content=$(echo "$content" | sed \
 			-e 's/^{{#ACME_ENABLED}}$//' \
 			-e 's/^{{\/ACME_ENABLED}}$//')
 	else
-		# Remove entire blocks including content
 		content=$(echo "$content" | sed \
 			-e '/^{{#ACME_ENABLED}}$/,/^{{\/ACME_ENABLED}}$/d')
 	fi
 
+	# Process {{#PI_IMAP_ENABLED}}...{{/PI_IMAP_ENABLED}} blocks
+	if [[ "${PI_IMAP_ENABLED:-false}" == "true" ]]; then
+		content=$(echo "$content" | sed \
+			-e 's/^{{#PI_IMAP_ENABLED}}$//' \
+			-e 's/^{{\/PI_IMAP_ENABLED}}$//')
+	else
+		content=$(echo "$content" | sed \
+			-e '/^{{#PI_IMAP_ENABLED}}$/,/^{{\/PI_IMAP_ENABLED}}$/d')
+	fi
+
 	# Replace {{VAR}} placeholders with values
-	content=$(echo "$content" | sed \
-		-e "s|{{UPSTREAM_HOST}}|${UPSTREAM_HOST}|g" \
-		-e "s|{{SERVE_HOST}}|${SERVE_HOST}|g" \
-		-e "s|{{ACME_EMAIL}}|${ACME_EMAIL}|g")
+	sed_args=(
+		-e "s|{{MIRROR_UPSTREAM_HOST}}|${MIRROR_UPSTREAM_HOST}|g"
+		-e "s|{{SERVE_HOST}}|${SERVE_HOST}|g"
+		-e "s|{{ACME_EMAIL}}|${ACME_EMAIL}|g"
+	)
+
+	# Conditionally append the IMAP replacements
+	if [[ "$PI_IMAP_ENABLED" == "true" ]]; then
+		sed_args+=(
+			-e "s|{{PI_IMAP_LIST_NAME}}|${PI_IMAP_LIST_NAME}|g"
+			-e "s|{{PI_IMAP_LIST_ADDRESS}}|${PI_IMAP_LIST_ADDRESS}|g"
+			-e "s|{{PI_IMAP_AUTH_URL}}|${PI_IMAP_AUTH_URL}|g"
+		)
+	fi
+
+	# Execute sed using the array expansion
+	# Note: I used <<< "$content" instead of echo, which is generally safer in Bash
+	content=$(sed "${sed_args[@]}" <<<"$content")
 
 	# Remove any remaining empty lines from conditional blocks
-	content=$(echo "$content" | sed '/^$/N;/^\n$/d')
+	content=$(sed '/^$/N;/^\n$/d' <<<"$content")
 
 	echo "$content" >"$output"
 	log_info "Generated: $output"
@@ -158,6 +180,9 @@ if [[ "$DRY_RUN" = false ]]; then
 	log_info "Configuration generation complete!"
 	log_info "Generated files:"
 	find build/ -type f | sed 's/^/  /'
+	echo ""
+	log_info "Ensuring data directories exist..."
+	mkdir -p data/all 2>/dev/null || true
 	echo ""
 	log_info "Next steps:"
 	echo "  make run-hosting && make logs-hosting"

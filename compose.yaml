@@ -44,7 +44,7 @@ services:
     - ./build/pi-configs/:/etc/public-inbox/:z
     - ./data/:/data:z
     - ./scripts:/scripts:z
-    command: bash /scripts/index-cloned-repos.sh -o https://${UPSTREAM_HOST}
+    command: bash /scripts/index-cloned-repos.sh -o https://${MIRROR_UPSTREAM_HOST}
 
   nginx:
     profiles: ["hosting"]
@@ -53,8 +53,6 @@ services:
       - "8088:80"
       - "8443:443"
       - "8119:119"
-    networks:
-      - hosting
     volumes:
       - ./build/nginx/angie.conf:/etc/angie/angie.conf:z
       - ./acme:/var/lib/angie/acme:z
@@ -66,8 +64,6 @@ services:
   public-inbox:
     profiles: ["hosting"]
     restart: unless-stopped
-    networks:
-      - hosting
     build:
       context: .
       dockerfile: ./Containerfile

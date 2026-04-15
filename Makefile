@@ -1,7 +1,7 @@
 # Include shared container runtime detection
 include ./containers.mk
 
-.PHONY: setup setup-dry-run run-hosting run-mirroring run-indexer clean logs help
+.PHONY: setup setup-dry-run run-hosting watch-hosting run-mirroring run-indexer clean logs help
 
 ##@ Setup
 
@@ -15,6 +15,9 @@ setup-dry-run: ## Show what would be generated without writing files
 
 run-hosting: ## Start public-inbox and nginx (hosting profile)
 	$(COMPOSE) --profile hosting up -d
+
+watch-hosting: ## Start public-inbox and nginx (hosting profile)
+	$(COMPOSE) --profile hosting up 
 
 run-mirroring: ## Start grokmirror mirroring (mirroring profile)
 	$(COMPOSE) --profile mirroring up -d

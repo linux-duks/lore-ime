@@ -20,15 +20,16 @@ cleanup() {
 	exit 1
 }
 
-# Service 1: Succesful long-running task
-spamd --username debian-spamd -l \
-	--nouser-config \
-	--syslog stderr \
-	--pidfile /var/run/spamd.pid \
-	--helper-home-dir /var/lib/spamassassin \
-	&
-# -s stderr 2>/dev/null &
-pids+=($!)
+if [ "$SPAMCHECK_ENABLED" = "true" ]; then
+	spamd --username debian-spamd -l \
+		--nouser-config \
+		--syslog stderr \
+		--pidfile /var/run/spamd.pid \
+		--helper-home-dir /var/lib/spamassassin \
+		&
+	# -s stderr 2>/dev/null &
+	pids+=($!)
+fi
 
 # startup interval
 sleep 2
@@ -38,22 +39,30 @@ BASE_DATA="/data"
 
 mkdir -p $EXT_DIR
 
-public-inbox-httpd &
-pids+=($!)
+if [ "$PI_HTTP_ENABLE" = "true" ]; then
+	public-inbox-httpd &
+	pids+=($!)
+fi
 
-public-inbox-nntpd &
-pids+=($!)
+if [ "$PI_NNTP_ENABLE" = "true" ]; then
+	public-inbox-nntpd &
+	pids+=($!)
+fi
 
-sleep 2
-public-inbox-watch &
-pids+=($!)
+if [ "$PI_IMAP_ENABLED" = "true" ]; then
+	sleep 2
+	public-inbox-watch &
+	pids+=($!)
+fi
 
-# Enable extended globbing for the 'not' operator
-shopt -s extglob
+if [ "$PI_INDEXING_ENABLE" = "true" ]; then
+	# Enable extended globbing for the 'not' operator
+	shopt -s extglob
 
-# Run the command
-# The trailing slash on !(all)/ ensures we only match directories
-sleep 2 && public-inbox-extindex "$EXT_DIR" "$BASE_DATA"/!(all)/
+	# Run the command
+	# The trailing slash on !(all)/ ensures we only match directories
+	sleep 2 && public-inbox-extindex "$EXT_DIR" "$BASE_DATA"/!(all)/
+fi
 
 echo "Monitoring services (PIDs: ${pids[*]})..."
 

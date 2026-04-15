@@ -29,14 +29,14 @@ Edit `.env` to configure your instance:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `UPSTREAM_HOST` | Grokmirror source (where you mirror **FROM**) | `lore.kernel.org` |
+| `MIRROR_UPSTREAM_HOST` | Grokmirror source (where you mirror **FROM**) | `lore.kernel.org` |
 | `SERVE_HOST` | Public-inbox serving URL (where you serve **TO**) | `lore.example.com` |
 | `ACME_ENABLED` | Enable ACME/SSL with Let's Encrypt | `false` |
 | `ACME_EMAIL` | Email for ACME certificate registration | `admin@example.com` |
 
-### Understanding UPSTREAM_HOST vs SERVE_HOST
+### Understanding MIRROR_UPSTREAM_HOST vs SERVE_HOST
 
-- **`UPSTREAM_HOST`**: The source you're cloning from. This is the grokmirror manifest host (e.g., `lore.kernel.org`, `lore.rcpassos.me`). Grokmirror uses this to fetch repos and manifests.
+- **`MIRROR_UPSTREAM_HOST`**: The source you're cloning from. This is the grokmirror manifest host (e.g., `lore.kernel.org`, `lore.rcpassos.me`). Grokmirror uses this to fetch repos and manifests.
   
 - **`SERVE_HOST`**: The URL where your instance will be accessible. This is used in nginx server_name, public-inbox URLs, and the extindex configuration.
 
