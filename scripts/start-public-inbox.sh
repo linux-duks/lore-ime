@@ -64,8 +64,11 @@ if [ "$PI_IMAP_ENABLED" = "true" ]; then
 fi
 
 if [ "$PI_INDEXING_ENABLE" = "true" ]; then
+	echo "Running Indexing job"
 	# The trailing slash on !(all)/ ensures we only match directories
 	sleep 2 && public-inbox-extindex "$EXT_DIR" "$BASE_DATA"/!(all)/
+	echo "Running Indexing job for the all folder"
+	public-inbox-extindex --all
 fi
 
 if [ ${#pids[@]} -eq 0 ]; then
