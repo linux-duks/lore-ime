@@ -17,6 +17,7 @@ services:
 
     environment:
       - HOME=/tmp
+      - PI_DATA_DIR=/data
       - GROKMIRROR_MODE=${GROKMIRROR_MODE:-clone}
 
     # stdin_open: true
@@ -37,6 +38,7 @@ services:
       dockerfile: ./Containerfile
     environment:
       - HOME=/tmp
+      - PI_DATA_DIR=/data
       - PI_CONFIG=/etc/public-inbox/config
 
     user: "${UID}:${GID}"
@@ -56,7 +58,7 @@ services:
     volumes:
       - ./build/nginx/angie.conf:/etc/angie/angie.conf:z
       - ./acme:/var/lib/angie/acme:z
-      - ./build/pi-configs/216dark.css:/var/www/static/theme.css:z
+      - ./configs/pi-configs/216dark.css:/var/www/static/theme.css:z
     depends_on:
       - public-inbox
     restart: unless-stopped
@@ -87,7 +89,7 @@ services:
       
     volumes:
       - ./data/:/data/:z
-      - ./build/pi-configs/216dark.css:/static/theme.css:z
+      - ./configs/pi-configs/216dark.css:/static/theme.css:z
       - ./scripts:/scripts:z
       - ./build/pi-configs/:/etc/public-inbox/:z
       - ./logs/:/var/log/public-inbox/:z
