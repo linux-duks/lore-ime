@@ -46,7 +46,7 @@ services:
     - ./configs/pi-configs/:/etc/public-inbox/:z
     - ./data/:/data:z
     - ./scripts:/scripts:z
-    command: bash /scripts/index-cloned-repos.sh -o https://${MIRROR_UPSTREAM_HOST}
+    command: bash /scripts/index-cloned-repos.sh -o ${MIRROR_UPSTREAM_HOST}
 
   nginx:
     profiles: ["hosting"]
