@@ -24,6 +24,8 @@ JOBS=4
 DRY_RUN=false
 VERBOSE=false
 INTERRUPTED=false
+LAST_HTTP_TIME=0
+HTTP_MINIMUM_INTERVAL=15
 
 export PI_CONFIG TOPDIR JOBS
 
@@ -45,6 +47,8 @@ while getopts "c:d:o:j:nvh" opt; do
     esac
 done
 
+ORIGIN="${ORIGIN%/}"
+
 if [ "$VERBOSE" = true ]; then
     set -x
 fi
@@ -61,6 +65,21 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_dry()   { echo -e "${YELLOW}[DRY-RUN]${NC} $*"; }
 
 trap 'INTERRUPTED=true; log_warn "Interrupt received, exiting after current operation completes"' INT TERM
+
+# Rate limit HTTP requests to avoid bot detection
+rate_limit_http() {
+    local now
+    now=$(date +%s)
+    local last_time="${LAST_HTTP_TIME:-0}"
+    local elapsed=$((now - last_time))
+    if [ "$elapsed" -lt $HTTP_MINIMUM_INTERVAL ]; then
+		local wait=$((HTTP_MINIMUM_INTERVAL - elapsed))
+        if [ "$VERBOSE" = true ]; then
+            log_info "Rate limiting: waiting ${wait}s before next HTTP request"
+        fi
+        sleep "$wait"
+    fi
+}
 
 # Check if inbox is already in config
 inbox_in_config() {
@@ -106,28 +125,116 @@ fetch_remote_config() {
     local inbox_name="$1"
     local inbox_dir="$2"
     local config_url="${ORIGIN}/${inbox_name}/_/text/config/raw"
+    local output_file="${inbox_dir}/remote.config.$$"
+    local http_code
 
-    if curl --compressed -sf -o "${inbox_dir}/remote.config.$$" "$config_url" 2>/dev/null; then
-        return 0
+    # Use grokmirror user agent to avoid blocking (as we are indeed using grokmirror)
+    http_code=$(curl -s -L --max-time 30 -o "$output_file" -w "%{http_code}" \
+        -H "User-Agent: grokmirror/2.1.0" \
+        -H "Accept: */*" \
+        -H "Connection: keep-alive" \
+        "$config_url" 2>/dev/null || echo "000")
+    
+    # Update last HTTP request time for rate limiting
+    LAST_HTTP_TIME=$(date +%s)
+
+    if [ "$http_code" = "200" ]; then
+        # Check if the response is actually a config file and not an error page
+        if grep -q -E '^\s*\[publicinbox|^\s*address\s*=' "$output_file" 2>/dev/null; then
+            if [ "$VERBOSE" = true ]; then
+                log_info "Fetched remote config for '${inbox_name}'"
+            fi
+            return 0
+        else
+            # Response is not a valid config (likely HTML error page)
+            if [ "$VERBOSE" = true ]; then
+                log_warn "Remote config for '${inbox_name}' appears to be an error page"
+            fi
+        fi
+    fi
+
+    # Clean up partial file
+    rm -f "$output_file" 2>/dev/null
+
+    if [ "$VERBOSE" = true ]; then
+        log_warn "Failed to fetch remote config for '${inbox_name}': HTTP ${http_code}"
     fi
     return 1
 }
 
 # Extract addresses from remote config
 extract_addresses() {
-    git config -f "${1}/remote.config.$$" -l 2>/dev/null | \
-        sed -ne 's/^publicinbox\..*\.address=//p' | tr '\n' ' '
+    local config_file="${1}/remote.config.$$"
+    if [ ! -f "$config_file" ]; then
+        return
+    fi
+    grep -E '^\s*address\s*=' "$config_file" | \
+        sed -e 's/.*=\s*//' -e 's/\s*$//' | tr '\n' ' '
 }
 
 # Extract description from remote config
 extract_description() {
-    git config -f "${1}/remote.config.$$" -l 2>/dev/null | \
-        sed -ne 's/^publicinbox\..*\.description=//p' | head -1
+    local config_file="${1}/remote.config.$$"
+    if [ ! -f "$config_file" ]; then
+        return
+    fi
+    grep -E '^\s*description\s*=' "$config_file" | \
+        sed -e 's/.*=\s*//' -e 's/\s*$//' | head -1
+}
+
+# Get list of git repos for a public-inbox
+get_pi_repos() {
+    local inbox_dir="$1"
+    local members=()
+    local at=0
+
+    while true; do
+        local repodir="${inbox_dir}/git/${at}.git"
+        if [ ! -d "$repodir" ]; then
+            break
+        fi
+        members+=("$repodir")
+        at=$((at + 1))
+    done
+
+    echo "${members[@]}"
+}
+
+# Extract addresses from git origins ref
+extract_addresses_from_git() {
+    local inbox_dir="$1"
+    local git_repos
+    local origins=""
+    
+    git_repos=$(get_pi_repos "$inbox_dir")
+    if [ -z "$git_repos" ]; then
+        return 1
+    fi
+
+    # Try each git repo (reverse order to get latest)
+    for repo in $(echo "$git_repos" | tr ' ' '\n' | tac); do
+        if [ -d "$repo" ]; then
+            origins=$(git -C "$repo" show refs/meta/origins:i 2>/dev/null)
+            if [ -n "$origins" ]; then
+                break
+            fi
+        fi
+    done
+
+    if [ -z "$origins" ]; then
+        return 1
+    fi
+
+    # Parse addresses from origins config
+    echo "$origins" | grep -E '^\s*address\s*=' | \
+        sed -e 's/.*=\s*//' -e 's/\s*$//' | tr '\n' ' '
 }
 
 # Find all v2 inboxes in TOPDIR
 find_v2_inboxes() {
     local inboxes=()
+    # Enable nullglob so that globs with no matches expand to empty list
+    shopt -s nullglob
 
     # v2 inboxes have this structure: inboxdir/git/N.git
     # We look for the top-level inbox directories
@@ -150,6 +257,8 @@ find_v2_inboxes() {
         fi
     done
 
+    # Restore nullglob
+    shopt -u nullglob
     echo "${inboxes[@]}"
 }
 
@@ -214,16 +323,29 @@ init_inbox() {
     # Inbox not in config - full init with remote config fetch
     log_info "Initializing inbox '${inbox_name}'"
 
-    # Try to get remote config
+    # Try to get addresses from git origins first
     local addresses=""
     local description=""
 
-    if fetch_remote_config "$inbox_name" "$inbox_dir"; then
-        addresses=$(extract_addresses "$inbox_dir")
-        description=$(extract_description "$inbox_dir")
+    addresses=$(extract_addresses_from_git "$inbox_dir")
+    if [ -n "$addresses" ]; then
+        if [ "$VERBOSE" = true ]; then
+            log_info "Extracted addresses from git: '${addresses}'"
+        fi
+    else
+        # Fallback to remote config fetch
+        rate_limit_http
+        if fetch_remote_config "$inbox_name" "$inbox_dir"; then
+            addresses=$(extract_addresses "$inbox_dir")
+            description=$(extract_description "$inbox_dir")
+            if [ "$VERBOSE" = true ]; then
+                log_info "Extracted addresses from remote config: '${addresses}'"
+                log_info "Extracted description: '${description}'"
+            fi
+        fi
     fi
 
-    # Fallback addresses
+    # Final fallback addresses
     if [ -z "$addresses" ]; then
         addresses="${inbox_name}@localhost"
         log_warn "Using fallback address: ${addresses}"
@@ -244,7 +366,7 @@ init_inbox() {
         "${inbox_name}" \
         "${inbox_dir}" \
         "${url}" \
-        ${addresses}; then
+        "${addresses}"; then
 
         # Set description if available
         if [ -n "$description" ]; then
