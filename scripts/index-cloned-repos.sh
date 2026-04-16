@@ -200,6 +200,18 @@ get_pi_repos() {
     echo "${members[@]}"
 }
 
+# Count git shards for an inbox
+count_git_shards() {
+    local inbox_dir="$1"
+    local count=0
+    
+    while [ -d "${inbox_dir}/git/${count}.git" ]; do
+        count=$((count + 1))
+    done
+    
+    echo "$count"
+}
+
 # Extract addresses from git origins ref
 extract_addresses_from_git() {
     local inbox_dir="$1"
@@ -268,6 +280,17 @@ init_inbox() {
     local inbox_name="$1"
     local inbox_dir="${TOPDIR}/${inbox_name}"
     local url="${ORIGIN}/${inbox_name}"
+    
+    # Check if this inbox has multiple git shards (recommends --split-shards)
+    local shard_count
+    shard_count=$(count_git_shards "$inbox_dir")
+    local split_shards_flag=""
+    if [ "$shard_count" -ge 2 ]; then
+        split_shards_flag="--split-shards"
+        if [ "$VERBOSE" = true ]; then
+            log_info "Inbox '${inbox_name}' has ${shard_count} git shards, will use --split-shards"
+        fi
+    fi
 
     # If inbox is in config AND complete, skip
     if inbox_in_config "$inbox_name" && ! needs_init "$inbox_dir"; then
@@ -293,7 +316,7 @@ init_inbox() {
 
         if [ "$DRY_RUN" = true ]; then
             log_dry "public-inbox-init -V2 '${inbox_name}' '${inbox_dir}' '${config_url}' ${config_address}"
-            log_dry "public-inbox-index --jobs=${JOBS} '${inbox_dir}'"
+            log_dry "public-inbox-index --jobs=${JOBS}${split_shards_flag:+ }${split_shards_flag} '${inbox_dir}'"
             return 0
         fi
 
@@ -310,7 +333,7 @@ init_inbox() {
         fi
 
         log_info "Indexing '${inbox_name}'"
-        if public-inbox-index --jobs="${JOBS}" "${inbox_dir}"; then
+        if public-inbox-index --jobs="${JOBS}" ${split_shards_flag} "${inbox_dir}"; then
             log_info "Indexed '${inbox_name}'"
         else
             log_error "Failed to index '${inbox_name}'"
@@ -356,7 +379,7 @@ init_inbox() {
         if [ -n "$description" ]; then
             log_dry "Set description: ${description}"
         fi
-        log_dry "public-inbox-index --jobs=${JOBS} '${inbox_dir}'"
+        log_dry "public-inbox-index --jobs=${JOBS}${split_shards_flag:+ }${split_shards_flag} '${inbox_dir}'"
         rm -f "${inbox_dir}/remote.config.$$"
         return 0
     fi
@@ -384,7 +407,7 @@ init_inbox() {
 
     # Run public-inbox-index
     log_info "Indexing '${inbox_name}'"
-    if public-inbox-index --jobs="${JOBS}" "${inbox_dir}"; then
+    if public-inbox-index --jobs="${JOBS}" ${split_shards_flag} "${inbox_dir}"; then
         log_info "Indexed '${inbox_name}'"
     else
         log_error "Failed to index '${inbox_name}'"
@@ -394,13 +417,39 @@ init_inbox() {
 
 # Run extindex on all inboxes
 run_extindex() {
+    local split_shards_flag=""
+    
+    # Check if any inbox has multiple git shards
+    log_info "Checking inboxes for multi-shard configuration"
+    local inboxes
+    inboxes=$(find_v2_inboxes)
+    local found_multi_shard=false
+    for inbox_name in $inboxes; do
+        local inbox_dir="${TOPDIR}/${inbox_name}"
+        local shard_count
+        shard_count=$(count_git_shards "$inbox_dir")
+        if [ "$shard_count" -ge 2 ]; then
+            split_shards_flag="--split-shards"
+            if [ "$VERBOSE" = true ]; then
+                log_info "Inbox '${inbox_name}' has ${shard_count} git shards, will use --split-shards for extindex"
+            elif [ "$found_multi_shard" = false ]; then
+                log_info "Found multi-shard inbox '${inbox_name}', enabling --split-shards for extindex"
+                found_multi_shard=true
+            fi
+            # Don't break, continue to log all multi-shard inboxes in verbose mode
+            if [ "$VERBOSE" = false ]; then
+                break  # Only need to find one multi-shard inbox in non-verbose mode
+            fi
+        fi
+    done
+    
     if [ "$DRY_RUN" = true ]; then
-        log_dry "public-inbox-extindex --all --jobs=${JOBS} /data/all"
+        log_dry "public-inbox-extindex --all --jobs=${JOBS}${split_shards_flag:+ }${split_shards_flag} /data/all"
         return 0
     fi
 
     log_info "Running extindex on all inboxes"
-    if public-inbox-extindex --all --jobs="${JOBS}" /data/all; then
+    if public-inbox-extindex --all --jobs="${JOBS}" ${split_shards_flag} /data/all; then
         log_info "Extindex complete"
     else
         log_error "Extindex failed"
