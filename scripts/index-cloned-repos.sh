@@ -23,6 +23,7 @@ ORIGIN="https://lore.kernel.org"
 JOBS=4
 DRY_RUN=false
 VERBOSE=false
+INTERRUPTED=false
 
 export PI_CONFIG TOPDIR JOBS
 
@@ -58,6 +59,8 @@ log_info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_dry()   { echo -e "${YELLOW}[DRY-RUN]${NC} $*"; }
+
+trap 'INTERRUPTED=true; log_warn "Interrupt received, exiting after current operation completes"' INT TERM
 
 # Check if inbox is already in config
 inbox_in_config() {
@@ -301,6 +304,11 @@ main() {
     local failed=0
 
     for inbox_name in $inboxes; do
+        if [ "$INTERRUPTED" = true ]; then
+            log_info "Interrupted, exiting..."
+            break
+        fi
+        
         total=$((total + 1))
 
         local rc=0
@@ -314,6 +322,11 @@ main() {
     done
 
     log_info "Summary: ${total} inboxes found, ${initialized} initialized, ${skipped} skipped, ${failed} failed"
+
+    if [ "$INTERRUPTED" = true ]; then
+        log_info "Skipping extindex due to interrupt"
+        exit 0
+    fi
 
     if [ "$initialized" -gt 0 ] || [ "$DRY_RUN" = true ]; then
         run_extindex
