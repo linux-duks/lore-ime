@@ -1,36 +1,25 @@
 version: '3'
 
-# Usage:
-#   docker compose --profile mirroring up -d                          # clone mode (default)
-#   GROKMIRROR_MODE=indexed docker compose --profile mirroring up -d  # indexed mode (with public-inbox hooks)
-#
-# After cloning with clone mode, run manual indexing:
-#   docker compose run --rm indexer
-
 services:
   grokmirror:
     profiles: ["mirroring"]
     build:
-      # uses the parent as context to install both grokmirror and public-inbox from source
       context: .
       dockerfile: ./Containerfile
-
     environment:
       - HOME=/tmp
       - PI_DATA_DIR=/data
       - GROKMIRROR_MODE=${GROKMIRROR_MODE:-clone}
-
-    # stdin_open: true
-    user: "${UID}:${GID}"
+    # Added fallback defaults to prevent defaulting to 0 (root) if vars are missing
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-    - ./configs/grokmirror/${GROKMIRROR_MODE:-clone}.conf:/config/grokmirror.conf:z
-    - ./configs/pi-configs/:/etc/public-inbox/:z
-    - ./data/:/data:z
-    - ./scripts:/scripts:z
+      - ./configs/grokmirror/${GROKMIRROR_MODE:-clone}.conf:/config/grokmirror.conf:z
+      - ./configs/pi-configs/:/etc/public-inbox/:z
+      - ./data/:/data:z
+      - ./scripts:/scripts:z
     command: grok-pull -v -c /config/grokmirror.conf
     stop_grace_period: 90s
 
-  # Run manual indexing: docker compose run --rm indexer
   indexer:
     profiles: ["manual"]
     build:
@@ -40,12 +29,12 @@ services:
       - HOME=/tmp
       - PI_DATA_DIR=/data
       - PI_CONFIG=/etc/public-inbox/config
-
-    user: "${UID}:${GID}"
+    # Added fallback defaults
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-    - ./configs/pi-configs/:/etc/public-inbox/:z
-    - ./data/:/data:z
-    - ./scripts:/scripts:z
+      - ./configs/pi-configs/:/etc/public-inbox/:z
+      - ./data/:/data:z
+      - ./scripts:/scripts:z
     command: bash /scripts/index-cloned-repos.sh -o ${MIRROR_UPSTREAM_HOST}
 
   nginx:
@@ -71,13 +60,12 @@ services:
       dockerfile: ./Containerfile
       args:
         USER_ID: '${UID:-1000}'
-        GROUP_ID: '${UID:-1000}'
+        # FIX: Changed from UID to GID
+        GROUP_ID: '${GID:-1000}'
     env_file:
       - .env
-
-    user: "${UID}:${GID}"
-    # userns_mode: "keep-id"
-    # userns_mode: "keep-id:uid=1000,gid=1000"
+    # Added fallback defaults
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - DEBUG=false
       - PI_CONFIG=/etc/public-inbox/config
@@ -85,16 +73,12 @@ services:
       - IMAP_FOLDER=INBOX
       - IMAP_SSL=true
       - IMAP_INTERVAL=3600
-      - SA_MAX_MAIL_SIZE 4096000
-      
+      - SA_MAX_MAIL_SIZE=4096000 # FIX: Added '=' sign
     volumes:
       - ./data/:/data/:z
       - ./config_template/pi-configs/216dark.css:/static/theme.css:z
       - ./scripts:/scripts:z
       - ./configs/pi-configs/:/etc/public-inbox/:z
       - ./logs/:/var/log/public-inbox/:z
-
-    # Make sure public-inbox is running in the foreground
     command: >
       bash /scripts/start-public-inbox.sh
-

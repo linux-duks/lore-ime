@@ -2,6 +2,12 @@
 
 Mirror public mailing lists from an upstream source and host them with public-inbox.
 
+## Requirements
+
+`podman + podman-compose v1.1.0
+or
+docker + docker-compose 1.28.0`
+
 ## Quick Start
 
 ```bash
@@ -111,15 +117,18 @@ The nginx config will automatically include ACME challenge endpoints and SSL con
 ## Workflow
 
 ### Clone Mode (Default)
+
 1. `make run-mirroring` - clones repos from upstream
 2. `make run-indexer` - initializes and indexes cloned repos
 3. `make run-hosting` - serves the indexed repos
 
 ### Indexed Mode (Automatic Indexing)
+
 1. `make run-mirroring-indexed` - clones AND indexes repos automatically
 2. `make run-hosting` - serves the indexed repos
 
 ### Adding Your Own Mailing List
+
 1. Add inbox configuration to `configs/pi-configs/config.template`
 2. Run `make setup` to regenerate
 3. Restart hosting: `make stop-hosting && make run-hosting`

@@ -42,3 +42,12 @@ ifeq ($(COMPOSE),)
         endif
     endif
 endif
+
+# Safely determine the real user/group ID, even if run with sudo
+REAL_UID := $(if $(SUDO_UID),$(SUDO_UID),$(shell id -u))
+REAL_GID := $(if $(SUDO_GID),$(SUDO_GID),$(shell id -g))
+
+# Export them so docker compose picks them up automatically
+export UID = $(REAL_UID)
+export GID = $(REAL_GID)
+# ----------------------
