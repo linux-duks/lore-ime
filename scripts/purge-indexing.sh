@@ -120,6 +120,23 @@ purge_inbox() {
     fi
 }
 
+# Purge external index (extindex)
+purge_extindex() {
+    local extindex_dir="${TOPDIR}/all"
+
+    if [ -d "$extindex_dir" ]; then
+        log_info "Purging external index at '${extindex_dir}'"
+        if [ "$DRY_RUN" = true ]; then
+            log_dry "rm -rf '${extindex_dir}'"
+        else
+            rm -rf "$extindex_dir"
+            log_info "Removed external index: ${extindex_dir}"
+        fi
+    else
+        log_info "No external index found at '${extindex_dir}'"
+    fi
+}
+
 # Main
 main() {
     log_info "Scanning for v2 inboxes in ${TOPDIR}"
@@ -129,16 +146,17 @@ main() {
 
     if [ -z "$inboxes" ]; then
         log_warn "No v2 inboxes found in ${TOPDIR}"
-        exit 0
+    else
+        local count=0
+        for inbox_name in $inboxes; do
+            count=$((count + 1))
+            purge_inbox "$inbox_name"
+        done
+        log_info "Purged indexing data from ${count} inboxes"
     fi
 
-    local count=0
-    for inbox_name in $inboxes; do
-        count=$((count + 1))
-        purge_inbox "$inbox_name"
-    done
-
-    log_info "Purged indexing data from ${count} inboxes"
+    # Always purge external index (extindex)
+    purge_extindex
 }
 
 main "$@"
