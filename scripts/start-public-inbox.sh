@@ -7,12 +7,32 @@ PARENT_PATH=$(
 	pwd -P
 )
 
-if [ -z "$(ls -A "$PI_DATA_DIR")" ]; then
-	echo "Data Directory is empty. Initialyzing"
-	PI_CONFIG=/etc/public-inbox/config.init bash $PARENT_PATH/reinit-from-config.sh /etc/public-inbox/config
+# Check each inbox defined in the config file.
+# If an inbox's directory is missing or empty (no git repo), initialize it.
+init_needed=()
+if [[ -f "$PI_CONFIG" ]]; then
+	inbox_names=$(git config -f "$PI_CONFIG" --get-regexp '^publicinbox\..*\.inboxdir$' |
+		sed 's/publicinbox\.\(.*\)\.inboxdir.*/\1/' | sort -u)
+	for name in $inbox_names; do
+		inbox_dir=$(git config -f "$PI_CONFIG" "publicinbox.${name}.inboxdir" 2>/dev/null || true)
+		if [[ -z "$inbox_dir" ]]; then
+			echo "WARN: inboxdir not set for '$name', skipping"
+			continue
+		fi
+		if [[ ! -d "$inbox_dir" ]] || [[ -z "$(ls -A "$inbox_dir" 2>/dev/null)" ]]; then
+			echo "Inbox '$name' missing or empty at $inbox_dir — needs init"
+			init_needed+=("$name")
+		fi
+	done
+fi
+
+if [[ ${#init_needed[@]} -gt 0 ]]; then
+	for name in "${init_needed[@]}"; do
+		echo "Initializing inbox '$name'..."
+		PI_CONFIG=/etc/public-inbox/config.init bash "$PARENT_PATH/reinit-from-config.sh" /etc/public-inbox/config "$name"
+	done
 else
-	# public-inbox-index
-	echo "Starting"
+	echo "All inboxes present, skipping init"
 fi
 
 # Array to keep track of process IDs
