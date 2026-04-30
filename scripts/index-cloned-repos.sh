@@ -267,7 +267,8 @@ find_v2_inboxes() {
 init_inbox() {
     local inbox_name="$1"
     local inbox_dir="${TOPDIR}/${inbox_name}"
-    local url="${ORIGIN}/${inbox_name}"
+	  # TODO: if running locally, this fails to direct to the non-default port
+    local url="${inbox_name}"
     
     # If inbox is in config AND complete, skip
     if inbox_in_config "$inbox_name" && ! needs_init "$inbox_dir"; then
