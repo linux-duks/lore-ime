@@ -1,7 +1,7 @@
 # Include shared container runtime detection
 include ./containers.mk
 
-.PHONY: setup setup-dry-run run-hosting watch-hosting run-mirroring pull-mirror run-mirroring-indexed run-indexer clean logs help
+.PHONY: setup setup-dry-run run-hosting watch-hosting run-mirroring pull-mirror run-mirroring-indexed run-indexer purge-indexing clean logs help
 
 ##@ Setup
 
@@ -30,6 +30,9 @@ run-mirroring-indexed: ## Start grokmirror with indexing hooks
 
 run-indexer: ## Run manual indexing of cloned repos
 	$(COMPOSE) --profile manual run --rm indexer
+
+purge-indexing: ## Purge public-inbox indexing data (preserves grokmirror clones)
+	$(COMPOSE) --profile manual run --rm indexer bash /scripts/purge-indexing.sh -d /data
 
 run-all: setup run-mirroring run-hosting ## Setup, mirror, and host everything
 

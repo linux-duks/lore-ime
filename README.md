@@ -190,6 +190,7 @@ The template system supports conditional blocks. Setting a variable to `true` in
 | `make pull-mirror` | Run grokmirror once, pull and exit (mirroring profile) |
 | `make run-mirroring-indexed` | Start grokmirror in indexed mode (auto-indexing enabled) |
 | `make run-indexer` | One-shot manual indexing of cloned repos (manual profile) |
+| `make purge-indexing` | Purge public-inbox indexing data (preserves grokmirror git clones) |
 | `make run-all` | Full pipeline: `setup` → `run-mirroring` → `run-hosting` |
 
 ### Utilities
@@ -398,6 +399,18 @@ make setup          # regenerates configs
 make run-hosting    # auto-runs reinit-from-config.sh on empty data dir
 make run-indexer    # re-indexes all repos
 ```
+
+### Purging Indexing Data
+
+To remove public-inbox indexing artifacts (Xapian, msgmap, over.sqlite3, all.git) while preserving grokmirror git clones:
+
+```bash
+make purge-indexing
+# or with dry-run to preview:
+./scripts/purge-indexing.sh -d /data -n
+```
+
+Use this when you want to re-index from scratch without re-cloning all repos from upstream. After purging, run `make run-indexer` to rebuild the indexes.
 
 ### Viewing generated configs
 
