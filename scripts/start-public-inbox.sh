@@ -2,9 +2,14 @@
 set -euo pipefail
 shopt -s extglob
 
+PARENT_PATH=$(
+	cd "$(dirname "${BASH_SOURCE[0]}")"
+	pwd -P
+)
+
 if [ -z "$(ls -A "$PI_DATA_DIR")" ]; then
 	echo "Data Directory is empty. Initialyzing"
-	PI_CONFIG=/etc/public-inbox/config.init bash ./reinit-from-config.sh /etc/public-inbox/config
+	PI_CONFIG=/etc/public-inbox/config.init bash $PARENT_PATH/reinit-from-config.sh /etc/public-inbox/config
 else
 	# public-inbox-index
 	echo "Starting"
