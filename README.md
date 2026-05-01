@@ -402,7 +402,7 @@ make run-indexer    # re-indexes all repos
 
 ### Purging Indexing Data
 
-To remove public-inbox indexing artifacts (Xapian, msgmap, over.sqlite3, all.git) while preserving grokmirror git clones:
+To remove public-inbox indexing artifacts (Xapian, msgmap, over.sqlite3, all.git, external index) while preserving grokmirror git clones:
 
 ```bash
 make purge-indexing
@@ -411,6 +411,8 @@ make purge-indexing
 ```
 
 Use this when you want to re-index from scratch without re-cloning all repos from upstream. After purging, run `make run-indexer` to rebuild the indexes.
+
+**Note:** This also removes the external index (`/data/all/`) which may be corrupted if you see `dir_end invalid` errors during `public-inbox-extindex`.
 
 ### Viewing generated configs
 

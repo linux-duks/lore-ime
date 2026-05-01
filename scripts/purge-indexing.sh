@@ -135,6 +135,14 @@ purge_extindex() {
     else
         log_info "No external index found at '${extindex_dir}'"
     fi
+
+    # Recreate empty directory so $cfg->ALL resolves (public-inbox requires dir to exist)
+    if [ "$DRY_RUN" = true ]; then
+        log_dry "mkdir -p '${extindex_dir}'"
+    else
+        mkdir -p "$extindex_dir"
+        log_info "Recreated empty extindex directory: ${extindex_dir}"
+    fi
 }
 
 # Main
