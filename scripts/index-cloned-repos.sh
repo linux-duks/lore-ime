@@ -27,6 +27,10 @@ INTERRUPTED=false
 LAST_HTTP_TIME=0
 HTTP_MINIMUM_INTERVAL=15
 EXTINDEX_ENABLED="${GROKMIRROR_EXTINDEX_ENABLED:-true}"
+INDEX_LEVEL="${PI_INDEX_LEVEL:-full}"
+INDEX_FAST="${PI_INDEX_DANGEROUSLY_FAST:-false}"
+INDEX_LEVEL="${PI_INDEX_LEVEL:-full}"
+INDEX_FAST="${PI_INDEX_DANGEROUSLY_FAST:-false}"
 
 export PI_CONFIG TOPDIR JOBS
 
@@ -80,6 +84,17 @@ rate_limit_http() {
         fi
         sleep "$wait"
     fi
+}
+
+# Build public-inbox-index flags based on INDEX_LEVEL and INDEX_FAST
+build_index_flags() {
+    local flags=("--jobs=${JOBS}" "-L" "$INDEX_LEVEL")
+
+    if [ "$INDEX_FAST" = true ]; then
+        flags+=("--no-fsync" "--dangerous" "--batch-size=500m" "--skip-docdata")
+    fi
+
+    echo "${flags[@]}"
 }
 
 # Check if inbox is already in config
@@ -294,12 +309,18 @@ init_inbox() {
         fi
 
         if [ "$DRY_RUN" = true ]; then
-            log_dry "public-inbox-init -V2 '${inbox_name}' '${inbox_dir}' '${config_url}' ${config_address}"
-            log_dry "public-inbox-index --jobs=${JOBS} '${inbox_dir}'"
+            log_dry "public-inbox-init -V2 -L ${INDEX_LEVEL} '${inbox_name}' '${inbox_dir}' '${config_url}' ${config_address}"
+            log_dry "public-inbox-index $(build_index_flags) '${inbox_dir}'"
             return 0
         fi
 
+        local init_flags=()
+        if [ "$INDEX_LEVEL" != "full" ]; then
+            init_flags=(-L "$INDEX_LEVEL")
+        fi
+
         if public-inbox-init -V2 \
+            "${init_flags[@]}" \
             "${inbox_name}" \
             "${inbox_dir}" \
             "${config_url}" \
@@ -312,7 +333,7 @@ init_inbox() {
         fi
 
         log_info "Indexing '${inbox_name}'"
-        if public-inbox-index --jobs="${JOBS}" "${inbox_dir}"; then
+        if public-inbox-index $(build_index_flags) "${inbox_dir}"; then
             log_info "Indexed '${inbox_name}'"
         else
             log_error "Failed to index '${inbox_name}'"
@@ -354,17 +375,23 @@ init_inbox() {
     fi
 
     if [ "$DRY_RUN" = true ]; then
-        log_dry "public-inbox-init -V2 '${inbox_name}' '${inbox_dir}' '${url}' ${addresses}"
+        log_dry "public-inbox-init -V2 -L ${INDEX_LEVEL} '${inbox_name}' '${inbox_dir}' '${url}' ${addresses}"
         if [ -n "$description" ]; then
             log_dry "Set description: ${description}"
         fi
-        log_dry "public-inbox-index --jobs=${JOBS} '${inbox_dir}'"
+        log_dry "public-inbox-index $(build_index_flags) '${inbox_dir}'"
         rm -f "${inbox_dir}/remote.config.$$"
         return 0
     fi
 
     # Run public-inbox-init
+    local init_flags=()
+    if [ "$INDEX_LEVEL" != "full" ]; then
+        init_flags=(-L "$INDEX_LEVEL")
+    fi
+
     if public-inbox-init -V2 \
+        "${init_flags[@]}" \
         "${inbox_name}" \
         "${inbox_dir}" \
         "${url}" \
@@ -386,7 +413,7 @@ init_inbox() {
 
     # Run public-inbox-index
     log_info "Indexing '${inbox_name}'"
-    if public-inbox-index --jobs="${JOBS}" "${inbox_dir}"; then
+    if public-inbox-index $(build_index_flags) "${inbox_dir}"; then
         log_info "Indexed '${inbox_name}'"
     else
         log_error "Failed to index '${inbox_name}'"
@@ -394,15 +421,45 @@ init_inbox() {
     fi
 }
 
+# Build extindex flags based on INDEX_LEVEL and INDEX_FAST
+build_extindex_flags() {
+    local flags=("--all" "--jobs=${JOBS}")
+
+    if [ "$INDEX_LEVEL" != "full" ]; then
+        flags+=("-L" "$INDEX_LEVEL")
+    fi
+
+    if [ "$INDEX_FAST" = true ]; then
+        flags+=("--no-fsync" "--dangerous" "--batch-size=500m" "--skip-docdata")
+    fi
+
+    echo "${flags[@]}"
+}
+
+# Build extindex flags based on INDEX_LEVEL and INDEX_FAST
+build_extindex_flags() {
+    local flags=("--all" "--jobs=${JOBS}")
+
+    if [ "$INDEX_LEVEL" != "full" ]; then
+        flags+=("-L" "$INDEX_LEVEL")
+    fi
+
+    if [ "$INDEX_FAST" = true ]; then
+        flags+=("--no-fsync" "--dangerous" "--batch-size=500m" "--skip-docdata")
+    fi
+
+    echo "${flags[@]}"
+}
+
 # Run extindex on all inboxes
 run_extindex() {
     if [ "$DRY_RUN" = true ]; then
-        log_dry "public-inbox-extindex --all --jobs=${JOBS} /data/all"
+        log_dry "public-inbox-extindex $(build_extindex_flags) /data/all"
         return 0
     fi
 
     log_info "Running extindex on all inboxes"
-    if public-inbox-extindex --all --jobs="${JOBS}" /data/all; then
+    if public-inbox-extindex $(build_extindex_flags) /data/all; then
         log_info "Extindex complete"
     else
         log_error "Extindex failed"

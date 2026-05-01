@@ -33,6 +33,8 @@ services:
       - HOME=/tmp
       - PI_DATA_DIR=/data
       - PI_CONFIG=/etc/public-inbox/config
+    env_file:
+      - .env
     user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./configs/pi-configs/:/etc/public-inbox/:z

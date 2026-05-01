@@ -116,6 +116,8 @@ Edit `.env` to configure your instance. All variables are documented below:
 | `PI_HTTP_ENABLE` | Enable the public-inbox HTTP daemon | `true` | `true` |
 | `PI_NNTP_ENABLE` | Enable the public-inbox NNTP daemon | `false` | `true` |
 | `PI_INDEXING_ENABLE` | Run extindex on container startup | `false` | `true` |
+| `PI_INDEX_LEVEL` | Xapian index level: `basic` (no full-text search), `medium` (no phrase search), `full` (default) | `full` | `medium` |
+| `PI_INDEX_DANGEROUSLY_FAST` | Add performance flags (`--no-fsync --dangerous --batch-size=500m --skip-docdata`) to speed up indexing | `false` | `true` |
 
 #### IMAP Watch (for hosting your own lists)
 
