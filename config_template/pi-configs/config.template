@@ -3,9 +3,11 @@
 	wwwListing = all
 	css = /static/theme.css title=216dark
 
+{{#GROKMIRROR_EXTINDEX_ENABLED}}
 [extindex "all"]
 	topdir = /data/all
 	url = https://{{SERVE_HOST}}
+{{/GROKMIRROR_EXTINDEX_ENABLED}}
 
 {{#PI_IMAP_ENABLED}}
 [publicinbox "{{PI_IMAP_LIST_NAME}}"]

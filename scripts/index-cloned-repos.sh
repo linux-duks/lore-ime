@@ -26,6 +26,7 @@ VERBOSE=false
 INTERRUPTED=false
 LAST_HTTP_TIME=0
 HTTP_MINIMUM_INTERVAL=15
+EXTINDEX_ENABLED="${GROKMIRROR_EXTINDEX_ENABLED:-true}"
 
 export PI_CONFIG TOPDIR JOBS
 
@@ -451,8 +452,12 @@ main() {
         exit 0
     fi
 
-    if [ "$initialized" -gt 0 ] || [ "$DRY_RUN" = true ]; then
-        run_extindex
+    if [ "$EXTINDEX_ENABLED" = true ]; then
+        if [ "$initialized" -gt 0 ] || [ "$DRY_RUN" = true ]; then
+            run_extindex
+        fi
+    else
+        log_info "Skipping extindex (GROKMIRROR_EXTINDEX_ENABLED=false)"
     fi
 }
 

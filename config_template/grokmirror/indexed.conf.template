@@ -26,7 +26,9 @@ projectslist_symlinks = no
 # Hooks enabled - integrates with public-inbox
 post_update_hook = /usr/local/bin/grok-pi-indexer -c /etc/public-inbox/config -t ${core:toplevel} update
 post_clone_complete_hook = /usr/local/bin/grok-pi-indexer -c /etc/public-inbox/config -t ${core:toplevel} -j 4 --no-fsync init --origin-hostname {{MIRROR_UPSTREAM_HOST}}
+{{#GROKMIRROR_EXTINDEX_ENABLED}}
 post_work_complete_hook = /usr/local/bin/grok-pi-indexer -c /etc/public-inbox/config -t ${core:toplevel} -j 4 --no-fsync -v extindex
+{{/GROKMIRROR_EXTINDEX_ENABLED}}
 purge = yes
 purgeprotect = 5
 default_owner = Grokmirror User

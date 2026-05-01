@@ -147,6 +147,7 @@ process_template() {
 	content=$(process_conditional_block "$content" "ACME_ENABLED")
 	content=$(process_conditional_block "$content" "PI_IMAP_ENABLED")
 	content=$(process_conditional_block "$content" "SPAMCHECK_ENABLED")
+	content=$(process_conditional_block "$content" "GROKMIRROR_EXTINDEX_ENABLED")
 
 	# Replace {{VAR}} placeholders with values
 	sed_args=(

@@ -103,6 +103,7 @@ Edit `.env` to configure your instance. All variables are documented below:
 |----------|-------------|---------|---------|
 | `MIRROR_UPSTREAM_HOST` | Grokmirror source URL (where you mirror **from**) | _(required)_ | `https://public-inbox.example.org` |
 | `GROKMIRROR_MODE` | Mirroring mode: `clone` (just git) or `indexed` (git + auto-indexing via hooks) | `clone` | `clone` |
+| `GROKMIRROR_EXTINDEX_ENABLED` | In indexed mode, run cross-inbox extindex after each pull cycle | `true` | `false` |
 
 #### Hosting
 

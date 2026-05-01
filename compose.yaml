@@ -11,6 +11,7 @@ services:
       - HOME=/tmp
       - PI_DATA_DIR=/data
       - GROKMIRROR_MODE=${GROKMIRROR_MODE:-clone}
+      - GROKMIRROR_EXTINDEX_ENABLED=${GROKMIRROR_EXTINDEX_ENABLED:-true}
     user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./configs/grokmirror/${GROKMIRROR_MODE:-clone}.conf:/config/grokmirror.conf:z
