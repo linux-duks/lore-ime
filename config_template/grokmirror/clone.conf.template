@@ -32,7 +32,7 @@ default_owner = Grokmirror User
 remotename = _grokmirror
 pull_threads = 5
 retries = 3
-refresh = 3600
+refresh = 7200
 include = *
 exclude =
 

@@ -190,7 +190,7 @@ The template system supports conditional blocks. Setting a variable to `true` in
 |--------|-------------|
 | `make run-hosting` | Start public-inbox + nginx (hosting profile) |
 | `make watch-hosting` | Same as `run-hosting` but in foreground (see logs in terminal) |
-| `make run-mirroring` | Start grokmirror daemon (mirroring profile, detached, pulls every hour) |
+| `make run-mirroring` | Start grokmirror daemon (mirroring profile, detached, pulls every 2 hours) |
 | `make pull-mirror` | Run grokmirror once, pull and exit (mirroring profile) |
 | `make run-mirroring-indexed` | Start grokmirror in indexed mode (auto-indexing enabled) |
 | `make run-indexer` | One-shot manual indexing of cloned repos (manual profile) |
@@ -244,7 +244,7 @@ When running with `sudo`, the real user/group ID is preserved so files in `data/
 
 ```bash
 make setup
-make run-mirroring        # starts daemon, clones/fetches repos every hour in background
+make run-mirroring        # starts daemon, clones/fetches repos every 2 hours in background
 # or
 make pull-mirror          # one-shot: clones/fetches repos once and exits
 make run-indexer          # initializes and indexes all cloned repos
